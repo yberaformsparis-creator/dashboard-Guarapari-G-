@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard CD Guarapari</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+
+body{
+    font-family:'Segoe UI',sans-serif;
+    background:#eef2f7;
+    margin:0;
+    padding:30px;
+}
+
+h1{
+    text-align:center;
+    color:#1f2937;
+    font-size:34px;
+    margin-bottom:25px;
+}
+
+.upload{
+    background:#fff;
+    max-width:700px;
+    margin:0 auto 25px;
+    padding:25px;
+    border-radius:18px;
+    box-shadow:0 4px 20px rgba(0,0,0,.08);
+    text-align:center;
+}
+
+input[type=file]{
+    padding:12px;
+    border:2px dashed #2563eb;
+    border-radius:12px;
+    width:100%;
+    max-width:450px;
+    background:#f8fafc;
+}
+
+.cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:20px;
+    max-width:1400px;
+    margin:auto;
+}
+
+.card{
+    background:#fff;
+    padding:25px;
+    border-radius:18px;
+    box-shadow:0 4px 18px rgba(0,0,0,.08);
+    border-left:6px solid #2563eb;
+    transition:.3s;
+}
+
+.card:hover{
+    transform:translateY(-4px);
+}
+
+.card h2{
+    margin-top:0;
+    color:#1f2937;
+}
+
+.card p{
+    color:#4b5563;
+    margin:10px 0;
+}
+
+.numero{
+    font-size:42px;
+    font-weight:bold;
+}
+
+.total{
+    background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    color:white;
+    border:none;
+}
+
+.total h2,
+.total .numero{
+    color:white;
+}
+
+.ocupadas{
+    background:linear-gradient(135deg,#ef4444,#dc2626);
+    color:white;
+    border:none;
+}
+
+.ocupadas h2,
+.ocupadas .numero{
+    color:white;
+}
+
+.livres{
+    background:linear-gradient(135deg,#22c55e,#16a34a);
+    color:white;
+    border:none;
+}
+
+.livres h2,
+.livres .numero{
+    color:white;
+}
+
+.taxa{
+    border-left:6px solid #f59e0b;
+}
+
+.porcentagem{
+    color:#f59e0b;
+    font-size:42px;
+    font-weight:bold;
+}
+
+.acoes{
+    text-align:center;
+    margin-top:30px;
+}
+
+.btn{
+    border:none;
+    padding:14px 24px;
+    margin:5px;
+    border-radius:12px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:bold;
+    color:white;
+}
+
+.png{
+    background:#2563eb;
+}
+
+.whatsapp{
+    background:#25D366;
+}
+
+.btn:hover{
+    opacity:.9;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>📦 Dashboard de Ocupação - CD Guarapari</h1>
+
+<div class="upload">
+    <h3>Importar Arquivo TSV</h3>
+    <input type="file" id="arquivo" accept=".tsv,.txt">
+</div>
+
+<div id="dashboard-area">
+    <div id="resultado"></div>
+</div>
+
+<div class="acoes">
+    <button class="btn png" onclick="exportarPNG()">
+        📸 Exportar PNG
+    </button>
+
+    <button class="btn whatsapp" onclick="enviarWhatsApp()">
+        📱 WhatsApp
+    </button>
+</div>
+
+<script>
+
+document.getElementById("arquivo").addEventListener("change", function(e){
+
+    const arquivo = e.target.files[0];
+    const leitor = new FileReader();
+
+    leitor.onload = function(){
+
+        const linhas = leitor.result.trim().split("\n");
+        const cabecalho = linhas[0].split("\t");
+
+        const idxAndar = cabecalho.indexOf("Andar");
+        const idxEstoque = cabecalho.indexOf("Estoque");
+        const idxAtivo = cabecalho.indexOf("Ativo");
+
+        let dados = {
+            1:{total:0,ocupadas:0},
+            2:{total:0,ocupadas:0},
+            3:{total:0,ocupadas:0}
+        };
+
+        let totalGeral = 0;
+        let ocupadasGeral = 0;
+
+        for(let i=1;i<linhas.length;i++){
+
+            let colunas = linhas[i].split("\t");
+
+            if(colunas.length < cabecalho.length) continue;
+
+            let ativo = colunas[idxAtivo]?.trim();
+            let estoque = parseInt(colunas[idxEstoque]);
+            let andar = parseInt(colunas[idxAndar]);
+
+            if(ativo !== "S") continue;
+
+            if(dados[andar]){
+
+                dados[andar].total++;
+                totalGeral++;
+
+                if(estoque === 1){
+                    dados[andar].ocupadas++;
+                    ocupadasGeral++;
+                }
+            }
+        }
+
+        let livresGeral = totalGeral - ocupadasGeral;
+
+        let taxa = totalGeral > 0
+        ? ((ocupadasGeral / totalGeral) * 100).toFixed(1)
+        : 0;
+
+        let html = '<div class="cards">';
+
+        [1,2,3].forEach(andar => {
+
+            let total = dados[andar].total;
+            let ocupadas = dados[andar].ocupadas;
+            let livres = total - ocupadas;
+
+            html += `
+            <div class="card">
+                <h2>🏢 Andar ${andar}</h2>
+                <p>Total de vagas: <b>${total}</b></p>
+                <p>🔴 Ocupadas: <b>${ocupadas}</b></p>
+                <p>🟢 Disponíveis: <b>${livres}</b></p>
+            </div>
+            `;
+        });
+
+        html += `
+        <div class="card total">
+            <h2>Total Geral</h2>
+            <div class="numero">${totalGeral}</div>
+        </div>
+
+        <div class="card ocupadas">
+            <h2>Ocupadas</h2>
+            <div class="numero">${ocupadasGeral}</div>
+        </div>
+
+        <div class="card livres">
+            <h2>Disponíveis</h2>
+            <div class="numero">${livresGeral}</div>
+        </div>
+
+        <div class="card taxa">
+            <h2>Taxa de Ocupação</h2>
+            <div class="porcentagem">${taxa}%</div>
+        </div>
+        `;
+
+        html += '</div>';
+
+        document.getElementById("resultado").innerHTML = html;
+    };
+
+    leitor.readAsText(arquivo);
+});
+
+function exportarPNG(){
+
+    html2canvas(document.getElementById("dashboard-area"),{
+        scale:2
+    }).then(canvas => {
+
+        const link = document.createElement("a");
+
+        const data = new Date().toLocaleDateString("pt-BR")
+        .replaceAll("/","-");
+
+        link.download = "dashboard-"+data+".png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
+}
+
+function enviarWhatsApp(){
+
+    const texto =
+    "Dashboard de Ocupação CD Guarapari gerado com sucesso.";
+
+    window.open(
+    "https://wa.me/?text="+encodeURIComponent(texto),
+    "_blank"
+    );
+}
+
+</script>
+
+</body>
+</html>
